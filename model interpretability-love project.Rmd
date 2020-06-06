@@ -1,0 +1,352 @@
+---
+title: "Day-5-Model Interpretability"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Model interpretability
+We 
+
+```{r}
+library("corrplot")
+library("psych")
+library("iml")
+library("randomForest")
+library("partykit")
+library("tidyverse")
+
+## medv is the output variable
+#love = read.csv("/Users/tr-six/Downloads/Study1anum.csv", sep = ";",dec = ",")
+#love2 <- data.frame(Gender = love$Gender, Age = love$Age, LAFS = love$LAFS, LFAW = love$LFAW, OAO = love$OAO, I =love$I, CRT =love$CRTperfTOTAL , beliefTot = love$BeliefTotal)
+#love3 <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTperfTOTAL , beliefTot = love$BeliefTotal)
+#love3 <- filter(love3, CRT != "NA")
+#love3 <- filter(love3, beliefTot != "NA")
+#love3
+#str(love2)
+
+
+
+
+love = read.csv("Study2a.csv", sep = ";", dec = ",")
+love2a <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTtotal , beliefTot = love$RBStotal)
+love2a <- filter(love2a, CRT != "NA")
+love2a <- filter(love2a, beliefTot != "NA")
+love2a <- filter(love2a, Age < 100)
+
+love = read.csv("Study1a.csv", sep = ";", dec = ",")
+love1a <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTperfTOTAL , beliefTot = love$BeliefTotal)
+love1a <- filter(love1a, CRT != "NA")
+love1a <- filter(love1a, beliefTot != "NA")
+#summary(love1a)
+
+love = read.csv("Study2b.csv", sep = ";", dec = ",")
+love2b <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTtotal , beliefTot = love$RomanticTotal)
+love2b <- filter(love2b, CRT != "NA")
+love2b <- filter(love2b, beliefTot != "NA")
+love2b <- filter(love2b, Age != "NA")
+#summary(love2b)
+
+love = read.csv("Study3.csv", sep = ";", dec = ",")
+love3 <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTtotal , beliefTot = love$RomanticBeliefs)
+summary(love3)
+love3 <- filter(love3, CRT != "NA")
+love3 <- filter(love3, beliefTot != "NA")
+love3 <- filter(love3, Age != "NA")
+love3 <- filter(love3, Gender != "NA")
+summary(love3)
+#summary(love2b)
+
+love = read.csv("Study4.csv", sep = ";", dec = ",")
+love4 <- data.frame(Gender = love$Gender, Age = love$Age, CRT =love$CRTtotal , beliefTot = love$RomanticismTotal)
+#head(love)
+love4 <- filter(love4, CRT != "NA")
+love4 <- filter(love4, beliefTot != "NA")
+#love3 <- filter(love3, Age != "NA")
+#love3 <- filter(love3, Gender != "NA")
+#summary(love4)
+
+love = rbind(love1a, love2a, love2b, love3, love4)
+love
+summary(love)
+```
+
+#Slide 1 - Olena
+
+## Perform Data exploration
+Love 3 - data:
+
+For the purpose of this exercise we have chosen the scientific paper of desputable quality yet honorable cause of understanding love.
+
+To get clearer picturer of the connection between romantic beliefs and cognitive style 257 people answered online to:
+- 15 questions to measure strenghts of their romantic beliefs - using a 7-point scale - 1 (Disagree Strongly) to 7 (Agree Strongly).
+The Love Finds AWay (LFAW)
+The Love At First Sight (LAFS)
+The One And Only (OAO)
+The Idealization (I)
+
+- CRT test - tendency to think rather intuitively or analitically. The Cognitive Reflection Test (CRT) is one of the most widely used tools to assess individual differences in intuitive–analytic cognitive styles. The answers can be seen on the scale from 0 to 4, 0 more intuitive thinking and 4 more analytical thinking.
+
+
+
+
+
+We start data exploration by making a pair plot and corrplot between CRT, beliefTot, Gender and Age.
+
+* Variables e.g. Crim, Tax and rad shows a **heavy skewness** so it might be a good idea to bin such variable. E.g. bin Chrim into low-crim and high-crim nieghbourhood
+* lstat shows a **negative non-linear relationship** (exponentially decreasing) with our output variable medv. Regression model will cause problems with such variables so ideally this variable must be transformed either using box-cox transformation or a logarithmic transformation which makes the relationship linear (perfect for linear regression).  
+* Most variables do not follow a normal distribution so it might make sense to transform them all using **box-cox transformation**. 
+* Among all the relationships between input variables and medv, few ones e.g. rm (very high positive correlation) and lstat (high negative correlation) clearly stand out. If these features also show up as imporant when performing model interpretability, it might make sense to run a simpler model using such fetures only.
+
+If regression was used to solve this problem, the points above would need to be taken care of otherwise a model created on original data could not be trusted. However, since Random Forest (a black-box model) is used in this tutorial, and this model can be used with original data without any transformation (you will learn that in machine learning week) we leave these points as such for now.
+
+The correlation plot among features cleary shows that features e.g. indus and nox show high positive correlation (> 0.75) whereas feature set e.g. indus and dis show high negative correlation. Ideally such high correlated features must not be present when running any machine learning algorithm (deep learning is a different case) and must be compressed to a single feature representing the highly correlated group. However, for the time being these features are left as such in this analysis. **Feel free to represent highly correlated features with a single feature**
+
+
+```{r}
+## Making pair plots of first few features only
+pairs.panels(love, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+
+### relationship between belief and CRT
+#plot(leukemiaremission$REMISS ~ leukemiaremission$lstat, xlab = "lstat", ylab = "medv", main = "Relationhsip between medv and lstat")
+
+## plot of 
+#plot(leukemiaremission$medv ~ log(leukemiaremission$lstat), xlab = "log(lstat)", ylab = "medv", main = "Relationhsip between medv and log(lstat)")
+
+## correlation plot
+
+corrplot(cor(love))
+
+
+plot(CRT ~ beliefTot, data = love)
+plot(Age ~ beliefTot, data = love)
+
+```
+Slide 2 - Konstantinos
+
+### Random Forest 
+
+For the purpose of this exercise **Random Forest model** (don't worry about the details of algorithm) will be used on this dataset. This model can be applied to data as follows
+
+```{r}
+set.seed(42312)
+## running random forest
+rf <- lm(beliefTot ~ Age + CRT + Gender, data = love)
+summary(rf)
+rf <- randomForest(beliefTot ~ ., data = love, ntree = 5000)
+
+rf
+
+```
+
+As with all trees it would be nice to visualize our random forest tree however, there is no direct way to do so using randomforest library. If you are interested in seeing a tree you could use **partykit** library insted.
+
+```{r}
+set.seed(422123)
+x <- ctree(beliefTot ~ ., data=love)
+plot(x, type="simple")
+
+```
+
+## Feature Importance
+
+For iml library to run interpretability a **predictor class** needs to be defined. This class basically holds model and data to run interpretability. The following code shows how to plot overall feature importance using **Permutation feature importance**. 
+
+```{r}
+
+## this step is needed to define a Predicto class
+X <- love[which(names(love) != "beliefTot")]
+predictor <- Predictor$new(rf, data = X, y = love$beliefTot)
+
+### Feature importance by permutation
+imp <- FeatureImp$new(predictor, loss = "mae")
+#library("ggplot2")
+plot(imp)
+
+```
+Slide 3 - Konstantinos
+
+From the plot above one can see that features e.g. CRT and gender are the most impotant features for predicting romantic beliefs.
+
+
+### Partial Dependence plot
+
+Partial depedence plot shows the marginal effect of one feature on prediction. One way to select such features is by using feature importance above and select features that are most imporant and least important for detailed analysis. The influence of rm (average number of rooms per dwelling) on median house value  is visualized below. The average cost of house increases as average room number incerases. The plot shows that medv for apartments below 6 rooms more or less has no impact on average house price however, one needs to keep in mind that we have very few samples of such apartments (black bars show how every entry). The average cost of an apartment as we move from 6 to 7 rooms increases by approximately 100k (~50%.increase).
+
+The PDP plot for nitric oxide concentration shows that overall low pollution areas have higher median cost (less variation as well) than high popultion areas and as nox changes from 0.63 to 0.7 the average house cost shows a huge drop of around 50%. Overall if the nox concentration is above .63 houses get cheaper.
+
+If we look at dis variable we see that as distance increase above 1 the house cost decreases considerably (from 27 to 23). What is interesting to see dis shows negative correlation with nox so either people prefer to live in city and do not mind polution or they live far from city center in low-polution areas.
+
+```{r}
+
+plot(FeatureEffect$new(predictor, "Age", method = "pdp"))
+
+## PDP for NOX
+plot(FeatureEffect$new(predictor, "CRT", method = "pdp"))
+
+## plot for distance
+plot(FeatureEffect$new(predictor, "Gender", method = "pdp"))
+
+```
+
+
+### Individual Conditional Expectation (ICE)
+
+Individual Conditional Expectation (ICE) plots display one line per instance and shows how the instance’s prediction changes when a feature changes. The plot here is very similar to pdp, it can be seen that for most data the avearge cost of house increases with increase in room numbers however for few neighbourhoods (top few lines) the average housing cost for 8 room apartments is cheaper than for 6 room ones. It would be worth looking into such cases to identify the cause of this.
+
+For nox the ICE plot shows that the prediced price is more affected in nox concentration range of 0.6 - 0.7 only than below 0.6 and above 0.7. It might make sense to try bin this feature into these 3 groups.   
+
+For dis the ICE plot shows that for most houses as distance increase from 0 to 1.5 there is a drop in price however, after a distance value of 1.5 house costs starts to rise till 2.5 and then it saturates stating basically distance has an impact on house prices only till a limit. After distance increases beyond 2.5, there is no effect on house prices.
+
+
+```{r}
+
+plot(FeatureEffect$new(predictor, "Age", method = "ice"))
+
+## PDP for NOX
+plot(FeatureEffect$new(predictor, "CRT", method = "ice"))
+
+## plot for dis
+plot(FeatureEffect$new(predictor, "Gender", method = "ice"))
+
+#Slide 5 and 6 Marie
+```
+
+### Accumulated local effects
+
+Accumulated local effects describe how features influence the prediction of a machine learning model on average. ALE plots are a faster and unbiased alternative to partial dependence plots (PDPs). 
+
+ALE plot for rm is similar to pdp plot above and shows an increase in average predicted price with increase in room numbers however, the small linear increase we observe between rm value 7 and 7.5 for pdp plot cancels out with ALE. This shows that the ALE plots correctly identifies that the machine learning model has a linear relationship between this feature and prediction for rm between 6 ane 7 and not with jumps as shown by pdp.
+
+
+```{r}
+
+plot(FeatureEffect$new(predictor, "Age", method = "ale"))
+
+## PDP for NOX
+plot(FeatureEffect$new(predictor, "CRT", method = "ale"))
+
+
+### Feature effect for all features
+effs <- FeatureEffects$new(predictor, method = "ale")
+plot(effs)
+
+#Slide 4 - Olena
+
+```
+
+
+### Interactions
+
+
+Interaction plots measure the interaction among features. Overlall interaction plot and plot for interactions of a single feature can be plotted as follows. Overall the population density (lstat) has a very high interaction with rm, crim, and nox. Individual interaction strength of lstat and nox is also shown here.
+
+
+```{r}
+
+## Measure interactions. 
+## We can also measure how strongly features interact with each other. The interaction measure regards how much of the variance of f(x)
+#f(x)is explained by the interaction. The measure is between 0 (no interaction) and 1 (= 100% of variance of f(x)
+#f(x) due to interactions). For each feature, we measure how much they interact with any other feature:
+interact <- Interaction$new(predictor)
+plot(interact)
+
+## individual feature interaction
+interact <- Interaction$new(predictor, feature = "Age")
+plot(interact)
+
+
+## individual feature interaction
+interact <- Interaction$new(predictor, feature = "CRT")
+plot(interact)
+
+#the model is going to change depending on age, gender and CRT because they all interact with each other
+
+Slide 7 - Marie
+
+```
+
+### Global Surrogate
+
+Another way to make the models more interpretable is to replace the black box with a simpler model - a decision tree. We take the predictions of the black box model (in our case the random forest) and train a decision tree on the original features and the predicted outcome. The plot shows the terminal nodes of the fitted tree. The maxdepth parameter controls how deep the tree can grow and therefore how interpretable it is. The plot here shows that avearge housing cost for lower populated areas (upper panel in plot i.e. lstat <- 0.971) is much higher than less the ones with higher population density (lower pannel). The plot also shows that in areas with low popultion density, the cost is highly related to the number of rooms.
+
+The R-sqare here is around 0.76 i.e our surrogate model is able to fit the predicted model (Random forest) very well. If this R-square is 1, one can through away the black-box model and use surrogate only.
+
+```{r}
+
+### surrogate model
+tree <- TreeSurrogate$new(predictor, maxdepth = 2)
+plot(tree)
+
+print(tree$r.squared)
+
+# Slide 8 - Konstantinos
+
+
+```
+
+
+### Local Surrogate
+
+Local interpretable model-agnostic explanations (LIME) is a local surrogate models i.e. it focuses on training local surrogate models to explain individual predictions. The idea is quite intuitive. First, forget about the training data and imagine you only have the black box model where you can input data points and get the predictions of the model. You can probe the box as often as you want. Your goal is to understand why the machine learning model made a certain prediction. LIME tests what happens to the predictions when you give variations of your data into the machine learning model. LIME generates a new dataset consisting of permuted samples and the corresponding predictions of the black box model. On this new dataset LIME then trains an interpretable model, which is weighted by the proximity of the sampled instances to the instance of interest. 
+
+The code belows shows how to plot Lime value for a sinble example. For this particula case, the actual prediction is a bit lower than local prediction. The plot shows that high rm has a positive effect on prediction whereas lstat and ptratio has a negative effect on prediction.
+
+```{r}
+
+# Explain single predictions with a local model
+
+lime.explain <- LocalModel$new(predictor, x.interest = X[50, ])
+lime.explain$results
+plot(lime.explain)
+
+```
+
+### Shapley value
+
+The Shapley value come from the field of game theory in which game is prediciton task, feature value is the player and prediction is the payout. The Shapley value measures the difference between a single prediction and the average prediciton of all data points. In the example below for first sample in our data we see that the average prediction for all boston neighbourhood stands at 25.75 and the prediction of first entry in our data is 22.56. The difference between the two is 3.19. Shapley plot shows here that which feature contributed to that value. What we see here is lstat contributed around 2.37k to this prediction i.e. for this specific example being located in a low population density region is preferable for price prediciton. Similary, 
+
+```{r}
+
+sample_no = 1
+
+prediction_value = predict(rf, X)
+
+plot(love$Age, prediction_value, main = "",xlab = "Predicted value", ylab = "Original Value")
+
+shapley <- Shapley$new(predictor, x.interest = X[sample_no, ])
+shapley$plot()
+
+hist(X$lstat, main = "Distribution of lstat")
+abline(v = X[sample_no, ]$lstat, col = "red")
+text(x = X[sample_no, ]$lstat + 11, y = 140, labels = paste( "lstat value for neighbourhood ", sample_no), col = "red")
+
+## extract results in data frame
+results <- shapley$results
+results
+
+```
+
+In this tutorial we have explored some of the most commonly use machine learning interpretable models. These models are becoming a key to understanding how machine learning works globally and locally. For a machine learning driven application it has become and absolute requirement to preduce interpretation plots especially if you are working in the field of perspective analytics i.e. the generated results affect decision making of someone. It should become your habbit to not use machine learning without showing such interpretations. 
+
+
+### References
+
+1. https://cran.r-project.org/web/packages/iml/vignettes/intro.html
+
+2. https://cran.r-project.org/web/packages/iml/vignettes/intro.html
+
+3. http://uc-r.github.io/iml-pkg
+
+4. https://liuyanguu.github.io/post/2019/07/18/visualization-of-shap-for-xgboost/
+
+5. https://christophm.github.io/interpretable-ml-book/ice.html
+
+6. https://cran.rstudio.com/web/packages/randomForestExplainer/vignettes/randomForestExplainer.html
+
+
